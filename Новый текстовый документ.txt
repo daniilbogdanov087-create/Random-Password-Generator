@@ -1,0 +1,97 @@
+import tkinter as tk
+from tkinter import ttk, messagebox
+import json
+import os
+import random
+
+# Константы
+HISTORY_FILE = 'history.json'
+MIN_LENGTH = 4
+MAX_LENGTH = 64
+
+# Основное окно
+root = tk.Tk()
+root.title("Random Password Generator")
+
+# Переменные
+length_var = tk.IntVar(value=12)
+digits_var = tk.BooleanVar(value=True)
+letters_var = tk.BooleanVar(value=True)
+symbols_var = tk.BooleanVar(value=False)
+
+# Загрузка истории
+if os.path.exists(HISTORY_FILE):
+    with open(HISTORY_FILE, 'r') as f:
+        history = json.load(f)
+else:
+    history = []
+
+# Функции
+def save_history():
+    with open(HISTORY_FILE, 'w') as f:
+        json.dump(history, f, indent=4)
+
+def generate_password():
+    length = length_var.get()
+    if not (MIN_LENGTH <= length <= MAX_LENGTH):
+        messagebox.showerror("Ошибка", f"Длина пароля должна быть от {MIN_LENGTH} до {MAX_LENGTH}")
+        return
+    
+    charset = ''
+    if digits_var.get():
+        charset += '0123456789'
+    if letters_var.get():
+        charset += 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    if symbols_var.get():
+        charset += '!@#$%^&*()-_=+[]{}|;:,.<>?'
+    
+    if not charset:
+        messagebox.showerror("Ошибка", "Выберите хотя бы один тип символов")
+        return
+    
+    password = ''.join(random.choice(charset) for _ in range(length))
+    
+    # Обновляем историю
+    history.append(password)
+    save_history()
+    update_history_table()
+    password_entry.delete(0, tk.END)
+    password_entry.insert(0, password)
+
+def update_history_table():
+    for row in tree.get_children():
+        tree.delete(row)
+    for p in reversed(history):
+        tree.insert('', 'end', values=(p,))
+
+# UI элементы
+tk.Label(root, text="Длина пароля").grid(row=0, column=0, sticky='w')
+length_scale = tk.Scale(root, from_=MIN_LENGTH, to=MAX_LENGTH, orient='horizontal', variable=length_var)
+length_scale.grid(row=0, column=1, sticky='we')
+
+tk.Checkbutton(root, text="Цифры", variable=digits_var).grid(row=1, column=0, sticky='w')
+tk.Checkbutton(root, text="Буквы", variable=letters_var).grid(row=1, column=1, sticky='w')
+tk.Checkbutton(root, text="Спецсимволы", variable=symbols_var).grid(row=1, column=2, sticky='w')
+
+generate_btn = tk.Button(root, text="Генерировать", command=generate_password)
+generate_btn.grid(row=2, column=0, columnspan=3, pady=10)
+
+tk.Label(root, text="Сгенерированный пароль").grid(row=3, column=0, sticky='w')
+password_entry = tk.Entry(root, width=50)
+password_entry.grid(row=3, column=1, columnspan=2, sticky='we')
+
+# Таблица истории
+columns = ('Password',)
+tree = ttk.Treeview(root, columns=columns, show='headings')
+tree.heading('Password', text='История паролей')
+tree.grid(row=4, column=0, columnspan=3, sticky='nsew')
+
+# Настройка растяжения таблицы
+root.grid_rowconfigure(4, weight=1)
+root.grid_columnconfigure(1, weight=1)
+
+# Инициализация истории
+update_history_table()
+
+# Основной цикл
+root.mainloop()
